@@ -29,4 +29,4 @@ externalSecret:
   secretsManagerKey: crud/backend
 
 metrics:
-  enabled: false # Week 11: switch to true (after installing kube-prometheus-stack)
+  enabled: true # Week 11: switch to true (after installing kube-prometheus-stack)
