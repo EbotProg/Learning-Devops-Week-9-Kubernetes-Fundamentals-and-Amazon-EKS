@@ -1,0 +1,18 @@
+# kube-prometheus-stack values (safe for Git: no secrets here)
+prometheus:
+  prometheusSpec:
+    # watch ServiceMonitors / PodMonitors / PrometheusRules in ANY namespace with ANY labels
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    retention: 2d
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+
+grafana:
+  adminPassword: "change-me-w11"   # lab only; port-forward access only
+
+# EKS's control plane is managed by AWS and can't be scraped → avoid permanent false alerts
+kubeEtcd: { enabled: false }
+kubeScheduler: { enabled: false }
+kubeControllerManager: { enabled: false }

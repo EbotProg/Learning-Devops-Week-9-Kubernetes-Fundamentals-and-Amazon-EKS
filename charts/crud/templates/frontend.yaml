@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  labels: {{- include "crud.labels" . | nindent 4 }}
+data:
+  PORT: {{ .Values.frontend.port | quote }}
+  HOSTNAME: "0.0.0.0"
+  NEXT_PUBLIC_PARSE_APP_ID: {{ .Values.appId | quote }}
+  NEXT_PUBLIC_PARSE_SERVER_URL: {{ .Values.parseServerUrl | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+    {{- include "crud.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.frontend.replicas }}   # omitted when the HPA owns the replica count
+  {{- end }}
+  revisionHistoryLimit: 5
+  minReadySeconds: 10
+  progressDeadlineSeconds: 180
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels: { app: frontend }
+  template:
+    metadata:
+      labels: { app: frontend }
+      annotations:
+        checksum/config: {{ printf "%s%s%s" (toJson .Values.frontend) .Values.parseServerUrl .Values.appId | sha256sum | trunc 16 }}
+    spec:
+      containers:
+        - name: frontend
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.frontend.port }}
+          envFrom:
+            - configMapRef: { name: frontend-config }
+          resources: {{- toYaml .Values.frontend.resources | nindent 12 }}
+          readinessProbe:
+            httpGet: { path: /, port: http }      # 2xx-3xx = healthy (a redirect to /login is fine)
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+    {{- include "crud.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: { app: frontend }
+  ports:
+    - name: http
+      port: {{ .Values.frontend.port }}
+      targetPort: http

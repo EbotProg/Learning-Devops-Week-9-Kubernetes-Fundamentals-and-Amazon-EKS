@@ -1,0 +1,40 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: crud
+  labels: {{- include "crud.labels" . | nindent 4 }}
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    {{- if .Values.ingress.certificateArn }}
+    # HTTPS mode: listen on 80 + 443, redirect http → https, use the ACM certificate
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: {{ .Values.ingress.certificateArn | quote }}
+    {{- else }}
+    # HTTP-only mode (no certificate yet): listen on 80 only
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    {{- end }}
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /parse
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port: { number: {{ .Values.backend.port }} }
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port: { number: {{ .Values.frontend.port }} }
+      {{- if .Values.ingress.host }}
+      host: {{ .Values.ingress.host | quote }}   # only answer for this hostname
+      {{- end }}
+{{- end }}

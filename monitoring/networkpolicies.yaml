@@ -1,0 +1,31 @@
+# WEEK 11 (Learn): default-deny ingress in "crud", then allow only what's needed.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny-ingress, namespace: crud }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-frontend, namespace: crud }
+spec:
+  podSelector: { matchLabels: { app: frontend } }
+  policyTypes: [Ingress]
+  ingress:
+    - ports: [{ port: 3000 }]          # from the ALB (outside the cluster), this port only
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: allow-backend, namespace: crud }
+spec:
+  podSelector: { matchLabels: { app: backend } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: frontend } }
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: monitoring } }
+        - ipBlock: { cidr: PUBLIC_SUBNET_CIDR_1 }     # the ALB lives in the public subnets
+        - ipBlock: { cidr: PUBLIC_SUBNET_CIDR_2 }
+        - ipBlock: { cidr: PUBLIC_SUBNET_CIDR_3 }
+      ports: [{ port: 1337 }]

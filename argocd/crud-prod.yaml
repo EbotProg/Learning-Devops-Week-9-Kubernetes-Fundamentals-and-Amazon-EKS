@@ -1,0 +1,27 @@
+# WEEK 10 DELIVERABLE: the ArgoCD Application for the CRUD app on EKS.
+# Apply ONCE (kubectl apply -f argocd/crud-prod.yaml). After that, Git drives deployments.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: crud
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io   # deleting this Application also deletes the app's objects
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/EbotProg/Learning-Devops-Week-9-Kubernetes-Fundamentals-and-Amazon-EKS.git
+    targetRevision: main                       # change if your Week 9 repo's branch is "master"
+    path: charts/crud
+    helm:
+      valueFiles:
+        - values-prod.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: crud
+  syncPolicy:
+    automated:
+      prune: true       # remove from the cluster what was removed from Git
+      selfHeal: true    # undo manual changes (Demo 1)
+    syncOptions:
+      - CreateNamespace=true

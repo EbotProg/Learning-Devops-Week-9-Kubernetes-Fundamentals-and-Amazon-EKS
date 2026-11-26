@@ -1,0 +1,6 @@
+# Local kind cluster: images loaded with `kind load`, secret created by hand.
+backend:
+  image: { repository: crud-backend, tag: dev }
+frontend:
+  image: { repository: crud-frontend, tag: dev }
+parseServerUrl: http://localhost:1337/parse

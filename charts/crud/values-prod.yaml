@@ -1,0 +1,32 @@
+# EKS (production). Image tags = the Git commit SHA that the pipeline pushed to ECR.
+# To release a new version: change the tag(s) here, commit, push → ArgoCD deploys it.
+backend:
+  image:
+    repository: 110566986807.dkr.ecr.eu-north-1.amazonaws.com/crud-parse-server-backend
+    tag: "a8efed065fca73a7f6b5e4ff1c083d1377f4cffa"
+  replicas: 2
+  enableFailRoute: false
+frontend:
+  image:
+    repository: 110566986807.dkr.ecr.eu-north-1.amazonaws.com/crud-nextjs-frontend
+    tag: "a8efed065fca73a7f6b5e4ff1c083d1377f4cffa"
+
+parseServerUrl: https://w9.ebotprog.ink/parse
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 60
+
+ingress:
+  enabled: true
+  host: w9.ebotprog.ink
+  certificateArn: "arn:aws:acm:eu-north-1:110566986807:certificate/8c1fc676-3a74-4267-8d4b-84d3d6c932a8"
+
+externalSecret:
+  enabled: true
+  secretsManagerKey: crud/backend
+
+metrics:
+  enabled: false # Week 11: switch to true (after installing kube-prometheus-stack)

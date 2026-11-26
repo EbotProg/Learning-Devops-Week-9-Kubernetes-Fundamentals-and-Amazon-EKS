@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  labels: {{- include "crud.labels" . | nindent 4 }}
+data:
+  PORT: {{ .Values.backend.port | quote }}
+  APP_ID: {{ .Values.appId | quote }}
+  PARSE_MOUNT: "/parse"
+  SERVER_URL: "http://localhost:{{ .Values.backend.port }}/parse"   # Parse calling itself, inside the pod
+  ENABLE_FAIL_ROUTE: {{ .Values.backend.enableFailRoute | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app: backend
+    {{- include "crud.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  revisionHistoryLimit: 5
+  minReadySeconds: 10
+  progressDeadlineSeconds: 180
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }   # zero-downtime rollout
+  selector:
+    matchLabels: { app: backend }
+  template:
+    metadata:
+      labels: { app: backend }
+      annotations:
+        # restart pods when the config changes (ConfigMaps don't restart pods by themselves)
+        checksum/config: {{ .Values.backend | toJson | sha256sum | trunc 16 }}
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.backend.port }}
+          envFrom:
+            - configMapRef: { name: backend-config }
+            - secretRef: { name: backend-secrets }   # DATABASE_URI, MASTER_KEY, MAINTENANCE_KEY
+          resources: {{- toYaml .Values.backend.resources | nindent 12 }}
+          readinessProbe:
+            httpGet: { path: {{ .Values.backend.healthPath }}, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: {{ .Values.backend.healthPath }}, port: http }
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  labels:
+    app: backend                      # the ServiceMonitor selects Services by THEIR labels
+    {{- include "crud.labels" . | nindent 4 }}
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-path: {{ .Values.backend.healthPath }}
+spec:
+  type: ClusterIP
+  selector: { app: backend }
+  ports:
+    - name: http                      # named port: used by the ServiceMonitor
+      port: {{ .Values.backend.port }}
+      targetPort: http

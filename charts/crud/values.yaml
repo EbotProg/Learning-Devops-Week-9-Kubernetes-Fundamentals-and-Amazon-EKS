@@ -1,0 +1,48 @@
+# Default values. Environment files (values-kind.yaml, values-prod.yaml) override these.
+
+appId: myAppId            # Parse APP_ID (not a secret: the browser sends it with every request)
+
+backend:
+  image:
+    repository: crud-backend
+    tag: dev
+    pullPolicy: IfNotPresent
+  replicas: 2             # used because the backend has no HPA (fixed count → ArgoCD self-heal demo)
+  port: 1337
+  healthPath: /parse/health
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 512Mi }
+  enableFailRoute: false  # Week 11 alert demo: true adds GET /debug/fail (always 500)
+
+frontend:
+  image:
+    repository: crud-frontend
+    tag: dev
+    pullPolicy: IfNotPresent
+  replicas: 2             # used ONLY when autoscaling.enabled is false
+  port: 3000
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 512Mi }
+
+# Public URL of the Parse API as seen by the BROWSER
+parseServerUrl: http://localhost:1337/parse
+
+autoscaling:              # HPA for the frontend
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 60
+
+ingress:
+  enabled: false
+  host: ""
+  certificateArn: ""
+
+externalSecret:           # true = backend-secrets comes from AWS Secrets Manager via ESO
+  enabled: false
+  secretsManagerKey: crud/backend
+
+metrics:                  # true = create a ServiceMonitor (needs kube-prometheus-stack installed first)
+  enabled: false

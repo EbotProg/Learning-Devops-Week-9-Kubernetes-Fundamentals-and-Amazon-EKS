@@ -1,0 +1,15 @@
+{{- if .Values.metrics.enabled }}
+# Week 11: tells Prometheus to scrape GET /metrics on the backend Service's "http" port.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend
+  labels: {{- include "crud.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels: { app: backend }
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+{{- end }}
