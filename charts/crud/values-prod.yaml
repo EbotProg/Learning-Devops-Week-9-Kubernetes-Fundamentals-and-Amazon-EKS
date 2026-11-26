@@ -3,7 +3,8 @@
 backend:
   image:
     repository: 110566986807.dkr.ecr.eu-north-1.amazonaws.com/crud-parse-server-backend
-    tag: "a8efed065fca73a7f6b5e4ff1c083d1377f4cffa"
+    # tag: "a8efed065fca73a7f6b5e4ff1c083d1377f4cffa"
+    tag: "does-not-exist"
   replicas: 2
   enableFailRoute: false
 frontend:
