@@ -1,0 +1,47 @@
+# EKS cluster for Weeks 9–11 (create from AWS CloudShell: eksctl create cluster -f cluster.yaml)
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: w9
+  region: eu-north-1
+  # version omitted → eksctl uses the current default EKS version
+
+iam:
+  withOIDC: true            # the cluster's OIDC provider in IAM → needed for IRSA
+  serviceAccounts:
+    # IRSA #1: AWS Load Balancer Controller (creates the ALB from our Ingress)
+    - metadata:
+        name: aws-load-balancer-controller
+        namespace: kube-system
+      wellKnownPolicies:
+        awsLoadBalancerController: true     # eksctl attaches AWS's official LBC policy
+    # IRSA #2: External Secrets Operator (reads ONE secret from Secrets Manager)
+    - metadata:
+        name: external-secrets
+        namespace: external-secrets
+      attachPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Resource: "arn:aws:secretsmanager:eu-north-1:*:secret:crud/backend-*"
+
+managedNodeGroups:
+  - name: ng-default
+    instanceType: m7i-flex.large   # Free plan: t3.medium not allowed (see README)
+    minSize: 2
+    desiredCapacity: 2         # m7i-flex.large: 8 GiB, ~29 pods per node
+    maxSize: 3
+    privateNetworking: true   # nodes in private subnets, internet via NAT (like Week 8 tasks)
+    volumeSize: 20
+    labels: { role: general }
+
+addons:
+  - name: vpc-cni
+    configurationValues: '{"enableNetworkPolicy": "true"}'   # Week 11: make NetworkPolicies actually work
+  - name: coredns
+  - name: kube-proxy
+  - name: metrics-server      # needed by the HPA and `kubectl top`
